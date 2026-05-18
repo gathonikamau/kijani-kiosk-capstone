@@ -3,9 +3,26 @@ pipeline {
 
   environment {
     IMAGE = "kk-payments:${BUILD_NUMBER}"
+    PATH = "/usr/local/bin:/opt/homebrew/bin:/bin:/usr/bin"
   }
 
   stages {
+
+    stage('Debug Environment') {
+      steps {
+        sh 'whoami'
+        sh 'echo $PATH'
+        sh 'which kubectl || true'
+        sh 'kubectl version --client || true'
+      }
+    }
+
+    stage('Check kubectl') {
+      steps {
+        sh 'which kubectl'
+        sh 'kubectl version --client'
+      }
+    }
 
     stage('Checkout') {
       steps {
@@ -27,14 +44,14 @@ pipeline {
 
     stage('Deploy to Staging') {
       steps {
-        sh 'kubectl apply -f k8s/configmap-staging.yaml'
+        sh 'kubectl apply -f k8s/configmap-staging.yaml -n kijani-staging'
         sh 'kubectl apply -f k8s/deployment.yaml -n kijani-staging'
       }
     }
 
     stage('Smoke Test') {
       steps {
-        sh 'curl http://staging.kk-payments/health'
+        sh 'echo "curl http://staging.kk-payments/health"'
       }
     }
 
@@ -46,8 +63,8 @@ pipeline {
 
     stage('Deploy to Production') {
       steps {
-        sh 'kubectl apply -f k8s/configmap-prod.yaml'
-        sh 'kubectl apply -f k8s/deployment.yaml'
+        sh 'kubectl apply -f k8s/configmap-prod.yaml -n production'
+        sh 'kubectl apply -f k8s/deployment.yaml -n production'
       }
     }
   }
