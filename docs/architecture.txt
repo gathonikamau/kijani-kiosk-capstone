@@ -1,0 +1,26 @@
+KijaniKiosk Capstone Architecture
+=================================
+
+                +-------------------+
+                |   GitHub Repo     |
+                +---------+---------+
+                          |
+                          v
+                +-------------------+
+                |     Jenkins       |
+                |  CI/CD Pipeline   |
+                +-------------------+
+                   |        |
+        build image |        | kubectl apply
+                   v        v
+            +-------------+   +------------------+
+            |   Docker    |   |  Kubernetes      |
+            |   Images    |   |  Kind Cluster    |
+            +-------------+   +------------------+
+                                   |
+                +------------------+------------------+
+                |                                     |
+        +---------------+                   +------------------+
+        |  Staging NS   |                   |  Production NS   |
+        | kijani-staging|                   | production       |
+        +---------------+                   +------------------+
