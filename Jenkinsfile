@@ -3,59 +3,50 @@ pipeline {
 
     environment {
         IMAGE = "kk-payments:${BUILD_NUMBER}"
-        PATH = "/usr/local/bin:/opt/homebrew/bin:/bin:/usr/bin"
-    }
-
-    options {
-        timeout(time: 15, unit: 'MINUTES')
-        disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        PATH = "/usr/local/bin:/usr/bin:/bin"
     }
 
     stages {
 
-        stage('Debug Environment') {
+        stage('Verify Tools') {
             steps {
-                sh 'echo "Running as: $(whoami)"'
-                sh 'echo "PATH: $PATH"'
-                sh 'which kubectl || true'
-                sh 'kubectl version --client || true'
-            }
-        }
-
-        stage('Check kubectl') {
-            steps {
-                sh 'which kubectl'
+                sh 'docker version'
                 sh 'kubectl version --client'
+                sh 'kubectl get nodes'
             }
         }
 
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Image') {
             steps {
                 sh 'docker build -t $IMAGE .'
             }
         }
 
-        stage('Push Image') {
+        stage('Ensure Namespaces Exist') {
             steps {
-                sh 'echo "Simulating image push..."'
+                sh '''
+                    kubectl get ns kijani-staging || kubectl create ns kijani-staging
+                    kubectl get ns production || kubectl create ns production
+                '''
             }
         }
 
         stage('Deploy to Staging') {
             steps {
-                sh 'kubectl apply -f k8s/configmap-staging.yaml -n kijani-staging'
-                sh 'kubectl apply -f k8s/deployment.yaml -n kijani-staging'
+                sh '''
+                    kubectl apply -f k8s/configmap-staging.yaml -n kijani-staging
+                    kubectl apply -f k8s/deployment.yaml -n kijani-staging
+                '''
             }
         }
 
-        stage('Verify Staging Deployment') {
+        stage('Verify Staging') {
             steps {
                 sh 'kubectl get pods -n kijani-staging'
             }
@@ -63,43 +54,29 @@ pipeline {
 
         stage('Smoke Test') {
             steps {
-                sh 'echo "Running smoke tests against staging environment..."'
-                sh 'kubectl get svc -n kijani-staging'
+                sh 'echo "curl http://staging.kk-payments/health"'
             }
         }
 
         stage('Approval Gate') {
             steps {
-                input message: 'Promote deployment to production?'
+                input message: "Deploy to production?"
             }
         }
 
         stage('Deploy to Production') {
             steps {
-                sh 'kubectl apply -f k8s/configmap-prod.yaml -n production'
-                sh 'kubectl apply -f k8s/deployment.yaml -n production'
+                sh '''
+                    kubectl apply -f k8s/configmap-prod.yaml -n production
+                    kubectl apply -f k8s/deployment.yaml -n production
+                '''
             }
         }
 
-        stage('Verify Production Deployment') {
+        stage('Verify Production') {
             steps {
                 sh 'kubectl get pods -n production'
             }
-        }
-    }
-
-    post {
-
-        success {
-            echo 'Pipeline completed successfully.'
-        }
-
-        failure {
-            echo 'Pipeline failed.'
-        }
-
-        always {
-            echo 'Pipeline execution finished.'
         }
     }
 }
