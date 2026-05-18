@@ -1,0 +1,13 @@
+- name: Configure staging namespace
+  hosts: localhost
+  tasks:
+    - name: Apply staging label
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: kijani-staging
+            labels:
+              environment: staging

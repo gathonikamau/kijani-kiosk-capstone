@@ -1,0 +1,54 @@
+pipeline {
+  agent any
+
+  environment {
+    IMAGE = "kk-payments:${BUILD_NUMBER}"
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Build Image') {
+      steps {
+        sh 'docker build -t $IMAGE .'
+      }
+    }
+
+    stage('Push Image') {
+      steps {
+        sh 'echo "Pushing image..."'
+      }
+    }
+
+    stage('Deploy to Staging') {
+      steps {
+        sh 'kubectl apply -f k8s/configmap-staging.yaml'
+        sh 'kubectl apply -f k8s/deployment.yaml -n kijani-staging'
+      }
+    }
+
+    stage('Smoke Test') {
+      steps {
+        sh 'curl http://staging.kk-payments/health'
+      }
+    }
+
+    stage('Approval Gate') {
+      steps {
+        input message: "Promote to production?"
+      }
+    }
+
+    stage('Deploy to Production') {
+      steps {
+        sh 'kubectl apply -f k8s/configmap-prod.yaml'
+        sh 'kubectl apply -f k8s/deployment.yaml'
+      }
+    }
+  }
+}

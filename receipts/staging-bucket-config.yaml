@@ -1,0 +1,3 @@
+bucket: kk-payments-receipts-staging
+trigger: kk-payments success event
+handler: receipt-chain-worker
